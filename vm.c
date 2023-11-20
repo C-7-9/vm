@@ -2,13 +2,20 @@
 #include <stdlib.h>
 
 static int
-vm_new_scope(struct vm *vm)
+stack_load(struct vm *vm, size_t index)
 {
-}
+	if (vm->var_len < index + 1)
+		return -1;
+	if (!vm->stack_len)
+		return -1;
+	
+	if (vm->var_len == index + 1)
+		vm->var = realloc(vm->var, ++vm->var_len * sizeof(struct value));
+	value_copy(&vm->var[index], vm->stack[vm->stack_len - 1]);
+	value_free(&vm->stack[vm->stack_len - 1]);
+	vm->stack_len--;
 
-static int
-vm_end_scope(struct vm *vm)
-{
+	return 0;
 }
 
 int
@@ -42,11 +49,16 @@ vm_run_one(struct vm *vm)
 		value_copy(&vm->stack[vm->stack_len++], vm->var[oprand]);
 		break;
 	case 0x30: /* load variable into memory */
-		if (!vm->stack_len)
+		if (stack_load(vm, oprand))
 			return -1;
-		value_copy(&vm->var[oprand], vm->stack[--vm->stack_len]);
 		break;
 	case 0x40: /* head of function */
+		if (oprand > vm->stack_len)
+			return -1;
+		for (size_t i = 0; i < oprand; i++)
+			if (stack_load(vm, vm->var_len++))
+				return -1;
+		break;
 	case 0x50: /* call user-defined function */
 	case 0x60: /* call built-in function */
 		if (func[oprand](vm->stack, &vm->stack_len))
