@@ -1,5 +1,5 @@
 #include "func.h"
-#define CALL_LEN 1024
+#define CALL_MAX 1024
 
 struct vm {
 	struct value stack[STACK_LEN];
@@ -14,7 +14,7 @@ struct vm {
 	size_t *func;
 	size_t func_len;
 
-	uint16_t call[CALL_LEN];
+	uint16_t call[CALL_MAX];
 	size_t call_len;
 
 	uint8_t *bc;
@@ -23,6 +23,6 @@ struct vm {
 	size_t pc;
 };
 
-int vm_init(struct vm *);
+int vm_init(struct vm *, uint8_t *, size_t);
 int vm_run_all(struct vm *);
 int vm_run_one(struct vm *);

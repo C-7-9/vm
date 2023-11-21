@@ -30,7 +30,7 @@ stack_load(struct vm *vm, size_t index)
 static int
 call_push(struct vm *vm, uint16_t func_num)
 {
-	if (vm->call_len == CALL_LEN)
+	if (vm->call_len == CALL_MAX)
 		return -1;
 	vm->call[vm->call_len++] = func_num;
 	return 0;
@@ -46,7 +46,7 @@ call_pop(struct vm *vm, uint16_t *func_num)
 }
 
 int
-vm_init(struct vm *vm)
+vm_init(struct vm *vm, uint8_t *bytes, size_t bytes_len)
 {
 	/* TODO */
 
