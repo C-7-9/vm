@@ -98,14 +98,16 @@ vm_run_one(struct vm *vm)
 		break;
 	case 0x70: /* return */ {
 		uint16_t func_num;
-		call_pop(vm, &func_num);
+		if (call_pop(vm, &func_num))
+			return -1;
 		vm->pc = vm->func[func_num] * 2;
 		stack_push(vm, vm->var[oprand]);
 		break;
 	}
 	case 0x80: /* tail of function */ {
 		uint16_t func_num;
-		call_pop(vm, &func_num);
+		if (call_pop(vm, &func_num))
+			return 1; /* end of program */
 		vm->pc = vm->func[func_num] * 2;
 		break;
 	}
@@ -124,7 +126,7 @@ vm_run_one(struct vm *vm)
 int
 vm_run_all(struct vm *vm)
 {
-	while (vm->pc * 2 < vm->bc_len) {
+	for (;;) {
 		int result = vm_run_one(vm);
 		if (result < 0)
 			return -1;
@@ -132,5 +134,5 @@ vm_run_all(struct vm *vm)
 			return 0;
 	}
 
-	return 0;
+	return 0; /* UNREACHABLE */
 }

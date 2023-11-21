@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Bytecode interpreter virtual machine
 
 ## Types
@@ -8,8 +7,3 @@ following primitive types are in virtual machine:
 * text - variable length ASCII character
 
 each primitive type has its own list and null variant.
-=======
-# script
-
-A simple c-like interpreted language
->>>>>>> 7201407 (Initial commit)
