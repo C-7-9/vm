@@ -2,6 +2,15 @@
 #include <stdlib.h>
 
 static int
+stack_push(struct vm *vm, struct value val)
+{
+	if (vm->stack_len == STACK_LEN)
+		return -1;
+	value_copy(&vm->stack[vm->stack_len++], val);
+	return 0;
+}
+
+static int
 stack_load(struct vm *vm, size_t index)
 {
 	if (vm->var_len < index + 1)
@@ -18,6 +27,24 @@ stack_load(struct vm *vm, size_t index)
 	return 0;
 }
 
+static int
+call_push(struct vm *vm, uint16_t func_num)
+{
+	if (vm->call_len == CALL_LEN)
+		return -1;
+	vm->call[vm->call_len++] = func_num;
+	return 0;
+}
+
+static int
+call_pop(struct vm *vm, uint16_t *func_num)
+{
+	if (!vm->call_len)
+		return -1;
+	*func_num = vm->call[--vm->call_len];
+	return 0;
+}
+
 int
 vm_init(struct vm *vm)
 {
@@ -31,22 +58,20 @@ int
 vm_run_one(struct vm *vm)
 {
 	size_t pc = vm->pc++ * 2; 
-	size_t opcode = vm->bc[pc] & 0xf0;
-	size_t oprand = ((size_t)(vm->bc[pc] & 0x0f) << 8) 
+	uint8_t opcode = vm->bc[pc] & 0xf0;
+	uint16_t oprand = ((uint16_t)(vm->bc[pc] & 0x0f) << 8) 
 					| vm->bc[pc + 1];
 
 	switch (opcode) {
 	case 0x00: /* shutdown */
 		return 1;
 	case 0x10: /* push constant into stack */
-		if (vm->stack_len == STACK_LEN)
+		if (stack_push(vm, vm->con[oprand]))
 			return -1;
-		value_copy(&vm->stack[vm->stack_len++], vm->con[oprand]);
 		break;
 	case 0x20: /* push variable into stack */
-		if (vm->stack_len == STACK_LEN)
+		if (stack_push(vm, vm->var[oprand]))
 			return -1;
-		value_copy(&vm->stack[vm->stack_len++], vm->var[oprand]);
 		break;
 	case 0x30: /* load variable into memory */
 		if (stack_load(vm, oprand))
@@ -60,12 +85,30 @@ vm_run_one(struct vm *vm)
 				return -1;
 		break;
 	case 0x50: /* call user-defined function */
+		if (oprand >= vm->func_len)
+			return -1;
+		vm->pc = vm->func[oprand];
+		if ((vm->bc[vm->pc * 2] & 0xf0) != 0x50)
+			return -1;
+		call_push(vm, oprand);
+		break;
 	case 0x60: /* call built-in function */
 		if (func[oprand](vm->stack, &vm->stack_len))
 			return -1;
 		break;
-	case 0x70: /* return */
-	case 0x80: /* tail of function */
+	case 0x70: /* return */ {
+		uint16_t func_num;
+		call_pop(vm, &func_num);
+		vm->pc = vm->func[func_num] * 2;
+		stack_push(vm, vm->var[oprand]);
+		break;
+	}
+	case 0x80: /* tail of function */ {
+		uint16_t func_num;
+		call_pop(vm, &func_num);
+		vm->pc = vm->func[func_num] * 2;
+		break;
+	}
 	case 0x90: /* loop start */
 	case 0xA0: /* loop next */
 	case 0xB0: /* loop exit */

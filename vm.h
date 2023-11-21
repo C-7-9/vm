@@ -1,4 +1,5 @@
 #include "func.h"
+#define CALL_LEN 1024
 
 struct vm {
 	struct value stack[STACK_LEN];
@@ -13,8 +14,8 @@ struct vm {
 	size_t *func;
 	size_t func_len;
 
-	size_t *call_stack;
-	size_t call_stack_len;
+	uint16_t call[CALL_LEN];
+	size_t call_len;
 
 	uint8_t *bc;
 	size_t bc_len;
