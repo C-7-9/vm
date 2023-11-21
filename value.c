@@ -2,6 +2,7 @@
 #include "str.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #define TRUE 0xff
 #define FALSE 0
@@ -115,4 +116,73 @@ value_copy(struct value *left, const struct value right)
 		left->data = right.data;
 		break;
 	}
+}
+
+char *
+value_into_text(const struct value val)
+{
+	switch (val.type) {
+	case BOOL:
+		return val.data.bool ? str_new("true") : str_new("false");
+	case REAL:
+		char buf[50];
+		snprintf(buf, 50, "%lf", val.data.real);
+		return str_new(buf);
+	case TEXT: {
+		char *text = str_new("");
+		str_push(&text, '"');
+		str_push_str(&text, val.data.text);
+		str_push(&text, '"');
+		return text;
+	}
+	case BOOL_N:
+		return str_new("BOOL_N");
+	case REAL_N:
+		return str_new("REAL_N");
+	case TEXT_N:
+		return str_new("TEXT_N");
+	case BOOL_L: {
+		char *text = str_new("[");
+		for (size_t i = 0; i < val.data.list.len; i++)
+			if (val.data.list.value[i].type != BOOL)
+				return NULL;
+			else {
+				str_push_str(&text, value_into_text(val.data.list.value[i]));
+				str_push(&text, ',');
+			}
+		text[strlen(text) - 1] = ']';
+		return text;
+	}
+	case REAL_L: {
+		char *text = str_new("[");
+		for (size_t i = 0; i < val.data.list.len; i++)
+			if (val.data.list.value[i].type != REAL)
+				return NULL;
+			else {
+				str_push_str(&text, value_into_text(val.data.list.value[i]));
+				str_push(&text, ',');
+			}
+		text[strlen(text) - 1] = ']';
+		return text;
+	}
+	case TEXT_L: {
+		char *text = str_new("[");
+		for (size_t i = 0; i < val.data.list.len; i++)
+			if (val.data.list.value[i].type != TEXT)
+				return NULL;
+			else {
+				str_push_str(&text, value_into_text(val.data.list.value[i]));
+				str_push(&text, ',');
+			}
+		text[strlen(text) - 1] = ']';
+		return text;
+	}
+	}
+
+	return NULL; /* UNREACHABLE */
+}
+
+struct value
+value_from_text(char *text)
+{
 }

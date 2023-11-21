@@ -38,6 +38,6 @@ void value_copy(struct value *, const struct value);
 
 /* TODO */
 char *
-value_into_text(const struct value *);
+value_into_text(const struct value);
 struct value
 value_from_text(char *);
