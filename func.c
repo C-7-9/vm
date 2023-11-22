@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#define BUF_LEN 50
+
 int
 value_bool_and(struct value stack[STACK_LEN], size_t *len)
 {
@@ -911,6 +913,14 @@ value_to_text(struct value stack[STACK_LEN], size_t *len)
 	case REAL:
 		char buf[50];
 		snprintf(buf, 50, "%lf", top->data.real);
+		for (size_t i = BUF_LEN - 1; i > 0; i--) {
+			if ('0' < buf[i] && buf[i] <= '9') {
+				buf[i + 1] = '\0';
+				break;
+			} else if (buf[i] == '.') {
+				buf[i] = '\0';
+			}
+		}
 		*top = value_text_with(buf);
 		break;
 	case TEXT:

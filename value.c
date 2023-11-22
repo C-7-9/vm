@@ -6,6 +6,7 @@
 
 #define TRUE 0xff
 #define FALSE 0
+#define BUF_LEN 50
 
 struct value
 value_bool_null()
@@ -87,6 +88,7 @@ value_copy(struct value *left, const struct value right)
 	left->type = right.type;
 	switch (right.type) {
 	case TEXT:
+		left->type = right.type;
 		left->data.text = str_new(right.data.text);
 		break;
 	case BOOL_L: /* FALLTHROUGH */
@@ -113,6 +115,7 @@ value_copy(struct value *left, const struct value right)
 	case BOOL_N:
 	case REAL_N:
 	case TEXT_N:
+		left->type = right.type;
 		left->data = right.data;
 		break;
 	}
@@ -125,8 +128,16 @@ value_into_text(const struct value val)
 	case BOOL:
 		return val.data.bool ? str_new("true") : str_new("false");
 	case REAL:
-		char buf[50];
-		snprintf(buf, 50, "%lf", val.data.real);
+		char buf[BUF_LEN] = { 0 };
+		sprintf(buf, "%lf", val.data.real);
+		for (size_t i = BUF_LEN - 1; i > 0; i--) {
+			if ('0' < buf[i] && buf[i] <= '9') {
+				buf[i + 1] = '\0';
+				break;
+			} else if (buf[i] == '.') {
+				buf[i] = '\0';
+			}
+		}
 		return str_new(buf);
 	case TEXT: {
 		char *text = str_new("");
@@ -136,11 +147,11 @@ value_into_text(const struct value val)
 		return text;
 	}
 	case BOOL_N:
-		return str_new("BOOL_N");
+		return str_new("BOOL");
 	case REAL_N:
-		return str_new("REAL_N");
+		return str_new("REAL");
 	case TEXT_N:
-		return str_new("TEXT_N");
+		return str_new("TEXT");
 	case BOOL_L: {
 		char *text = str_new("[");
 		for (size_t i = 0; i < val.data.list.len; i++)
@@ -248,4 +259,11 @@ value_from_text(struct value *val, char *text)
 		return -1;
 
 	return 0;
+}
+
+int
+main()
+{
+	struct value real = value_real_with(15.05);
+	puts(value_into_text(real));
 }
