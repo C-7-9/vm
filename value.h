@@ -36,8 +36,5 @@ struct value value_text_with(const char *);
 void value_free(struct value *);
 void value_copy(struct value *, const struct value);
 
-/* TODO */
-char *
-value_into_text(const struct value);
-struct value
-value_from_text(char *);
+char * value_into_text(const struct value);
+int value_from_text(struct value *, char *);

@@ -182,7 +182,70 @@ value_into_text(const struct value val)
 	return NULL; /* UNREACHABLE */
 }
 
-struct value
-value_from_text(char *text)
+static struct value
+value_text_from_raw_text(char *text)
 {
+	text[strlen(text) - 1] = '\0';
+	return value_text_with(text + 1);
+}
+
+static int
+value_list_from_raw_text(struct value *res_list, char *text)
+{
+	struct value val, *list = malloc(0);
+	size_t list_len = 0;
+	text[strlen(text) - 1] = '\0';
+	char *tok = strtok(text + 1, ",");
+	while (tok != NULL) {
+		value_from_text(&val, tok);
+		list = realloc(list, ++list_len * sizeof(struct value));
+		list[list_len - 1] = val;
+
+		tok = strtok(NULL, ",");
+	}
+
+	switch (list[0].type) {
+	case BOOL:
+		res_list->type = BOOL_L;
+		break;
+	case REAL:
+		res_list->type = REAL_L;
+		break;
+	case TEXT:
+		res_list->type = TEXT_L;
+		break;
+	default:
+		return -1;
+	}
+	res_list->data.list.value = list;
+	res_list->data.list.len = list_len;
+
+	return 0;
+}
+
+int
+value_from_text(struct value *val, char *text)
+{
+	if (!strlen(text))
+		return -1;
+	if (!strcmp(text, "BOOL"))
+		*val = value_bool_null();
+	else if (!strcmp(text, "REAL"))
+		*val = value_real_null();
+	else if (!strcmp(text, "TEXT"))
+		*val = value_text_null();
+	else if (!strcmp(text, "true"))
+		*val = value_bool_with(1);
+	else if (!strcmp(text, "false"))
+		*val = value_bool_with(0);
+	else if (text[0] == '"')
+		*val = value_text_from_raw_text(text);
+	else if (('0' <= text[0] && text[0] <= '9') || text[0] == '.')
+		*val = value_real_with(atof(text));
+	else if (text[0] == '[')
+		value_list_from_raw_text(val, text);
+	else
+		return -1;
+
+	return 0;
 }
