@@ -919,6 +919,7 @@ value_to_text(struct value stack[STACK_LEN], size_t *len)
 				break;
 			} else if (buf[i] == '.') {
 				buf[i] = '\0';
+				break;
 			}
 		}
 		*top = value_text_with(buf);

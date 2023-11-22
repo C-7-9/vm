@@ -136,6 +136,7 @@ value_into_text(const struct value val)
 				break;
 			} else if (buf[i] == '.') {
 				buf[i] = '\0';
+				break;
 			}
 		}
 		return str_new(buf);
@@ -259,11 +260,4 @@ value_from_text(struct value *val, char *text)
 		return -1;
 
 	return 0;
-}
-
-int
-main()
-{
-	struct value real = value_real_with(15.05);
-	puts(value_into_text(real));
 }
