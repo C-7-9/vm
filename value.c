@@ -88,7 +88,6 @@ value_copy(struct value *left, const struct value right)
 	left->type = right.type;
 	switch (right.type) {
 	case TEXT:
-		left->type = right.type;
 		left->data.text = str_new(right.data.text);
 		break;
 	case BOOL_L: /* FALLTHROUGH */
@@ -115,7 +114,6 @@ value_copy(struct value *left, const struct value right)
 	case BOOL_N:
 	case REAL_N:
 	case TEXT_N:
-		left->type = right.type;
 		left->data = right.data;
 		break;
 	}
