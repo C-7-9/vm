@@ -937,10 +937,10 @@ value_to_text(struct value stack[STACK_LEN], size_t *len)
 #include <windows.h>
 #include <time.h>
 #endif
-#define BUF_LEN 4
-#define BUF_SIZE BUF_LEN * sizeof(uint64_t)
+#define RAND_BUF_LEN 4
+#define RAND_BUF_SIZE BUF_LEN * sizeof(uint64_t)
 
-static uint64_t buf[BUF_LEN];
+static uint64_t buf[RAND_BUF_LEN];
 
 void
 init_rand_buf()
@@ -948,13 +948,13 @@ init_rand_buf()
 #ifdef _WIN32
 	if (!CryptGenRandom(GetModuleHandle(NULL), BUF_SIZE, buf)) {
 		srand(time(NULL));
-		uint8_t bufbuf[BUF_SIZE];
-		for (size_t i = 0; i < BUF_SIZE; i++)
+		uint8_t bufbuf[RAND_BUF_SIZE];
+		for (size_t i = 0; i < RAND_BUF_SIZE; i++)
 			bufbuf[i] = rand();
-		memcpy(buf, bufbuf, BUF_SIZE);
+		memcpy(buf, bufbuf, RAND_BUF_SIZE);
 	}
 #else
-	arc4random_buf(buf, BUF_SIZE);
+	arc4random_buf(buf, RAND_BUF_SIZE);
 #endif
 }
 
@@ -1008,7 +1008,7 @@ value_text_rand(struct value stack[STACK_LEN], size_t *len)
 	if (*len == STACK_LEN)
 		return -1;
 	
-	char *txt = " ";
+	char txt[] = " ";
 	txt[0] = xoshiro256ss() % 95 + 32; /* ASCII 32 ~ 126 */
 	stack[(*len)++] = value_text_with(txt);
 	return 0;
