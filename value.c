@@ -205,13 +205,26 @@ value_list_from_raw_text(struct value *res_list, char *text)
 	struct value val, *list = malloc(0);
 	size_t list_len = 0;
 	text[strlen(text) - 1] = '\0';
-	char *tok = strtok(text + 1, ",");
-	while (tok != NULL) {
-		value_from_text(&val, tok);
-		list = realloc(list, ++list_len * sizeof(struct value));
-		list[list_len - 1] = val;
 
-		tok = strtok(NULL, ",");
+	if (text[1] == '"') {
+		for (size_t i = 1; text[i] != '\0'; i++) {
+			if (text[i] == '"') {
+				size_t str_beg = ++i;
+				while (text[i] != '"') i++;
+				text[i] = '\0';
+				list = realloc(list, ++list_len * sizeof(struct value));
+				list[list_len - 1] = value_text_with(text + str_beg);
+			}
+		}
+	} else {
+		char *tok = strtok(text + 1, ",");
+		while (tok != NULL) {
+			value_from_text(&val, tok);
+			list = realloc(list, ++list_len * sizeof(struct value));
+			list[list_len - 1] = val;
+
+			tok = strtok(NULL, ",");
+		}
 	}
 
 	switch (list[0].type) {
