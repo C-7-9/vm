@@ -1,6 +1,50 @@
 #include "vm.h"
 #include <stdlib.h>
 
+static int (*func[])(struct value[STACK_LEN], size_t *) = {
+	value_bool_and, 
+	value_bool_oor,
+	value_bool_xor,
+	value_bool_not,
+	value_real_add,
+	value_real_sub,
+	value_real_mul,
+	value_real_div,
+	value_real_rem,
+	value_text_append, 
+	value_text_insert,
+	value_text_remove,
+	value_text_search,
+	value_text_getnth,
+	value_text_setnth,
+	value_text_rmvnth,
+	value_list_append,
+	value_list_insert,
+	value_list_remove,
+	value_list_search,
+	value_list_getnth,
+	value_list_setnth,
+	value_list_rmvnth,
+	value_bool_eq, 
+	value_bool_ne,
+	value_real_eq,
+	value_real_ne,
+	value_real_gt,
+	value_real_ge,
+	value_real_lt,
+	value_real_le,
+	value_text_eq,
+	value_text_ne,
+	value_list_eq,
+	value_list_ne,
+	value_to_bool, 
+	value_to_real,
+	value_to_text,
+	value_bool_rand, 
+	value_real_rand,
+	value_text_rand
+};
+
 static int
 stack_push(struct vm *vm, struct value val)
 {
