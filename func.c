@@ -237,7 +237,7 @@ value_text_getnth(struct value stack[STACK_LEN], size_t *len)
 		return -1;
 	
 	size_t idx = (size_t)top->data.real;
-	char *buf = " ";
+	char buf[] = " ";
 	char ch;
 	if (str_get_index(&sec->data.text, &ch, idx))
 		*sec = value_text_null();
@@ -267,8 +267,8 @@ value_text_setnth(struct value stack[STACK_LEN], size_t *len)
 		return -1;
 	
 	if (str_set_index(&bot->data.text,
-					   sec->data.text[0],
-					   (size_t)top->data.real))
+					  sec->data.text[0],
+					  (size_t)top->data.real))
 		*bot = value_text_null();
 
 	*len -= 2;
@@ -287,7 +287,7 @@ value_text_rmvnth(struct value stack[STACK_LEN], size_t *len)
 		return -1;
 
 	size_t idx = (size_t)top->data.real;
-	char *buf = " ";
+	char buf[] = " ";
 	char ch;
 	if (str_remove(&sec->data.text, &ch, idx))
 		*sec = value_text_null();
@@ -322,6 +322,14 @@ is_list(struct value *val)
 		|| val->type == TEXT_L;
 }
 
+static inline int
+invalid_item(struct value *list, struct value *item)
+{
+	return (list->type == BOOL_L && item->type != BOOL && item->type != BOOL_L)
+		|| (list->type == REAL_L && item->type != REAL && item->type != REAL_L)
+		|| (list->type == TEXT_L && item->type != TEXT && item->type != TEXT_L);
+}
+
 int
 value_list_append(struct value stack[STACK_LEN], size_t *len)
 {
@@ -332,24 +340,21 @@ value_list_append(struct value stack[STACK_LEN], size_t *len)
 	struct value *sec = &stack[*len - 2];
 	if (!is_list(sec))
 		return -1;
-	if ((sec->type == BOOL_L && (top->type != BOOL || top->type != BOOL_L))
-		|| (sec->type == REAL_L && (top->type != REAL || top->type != REAL_L))
-		|| (sec->type == TEXT_L && (top->type != TEXT || top->type != TEXT_L)))
+	if (invalid_item(sec, top))
 		return -1;
 
-	size_t top_len = is_list(top) ? top->data.list.len : 1;
-	size_t new_len = sec->data.list.len + top_len;
-	size_t new_size = new_len * sizeof(struct value);
+	size_t item_len = is_list(top) ? top->data.list.len : 1;
+	size_t new_size = (sec->data.list.len + item_len) * sizeof(struct value);
 	sec->data.list.value = realloc(sec->data.list.value, new_size);
 
 	if (is_list(top))
-		for (size_t i = sec->data.list.len; i < new_len; i++) {
-			size_t j = i - sec->data.list.len;
-			sec->data.list.value[i] = top->data.list.value[j];
-			sec->data.list.len += top->data.list.len;
-		}
+		for (size_t i = 0; i < top->data.list.len; i++)
+			sec->data.list.value[sec->data.list.len + i]
+				= top->data.list.value[i];
 	else
-		sec->data.list.value[sec->data.list.len++] = *top;
+		sec->data.list.value[sec->data.list.len] = *top;
+
+	sec->data.list.len += item_len;
 	(*len)--;
 
 	return 0;
@@ -361,30 +366,6 @@ value_list_insert(struct value stack[STACK_LEN], size_t *len)
 	if (*len < 3)
 		return -1;
 
-	struct value *top = &stack[*len - 1];
-	struct value *sec = &stack[*len - 2];
-	struct value *bot = &stack[*len - 3];
-	if (!is_list(bot) || top->type != REAL)
-		return -1;
-	if ((bot->type == BOOL_L && (sec->type != BOOL || sec->type != BOOL_L))
-		|| (bot->type == REAL_L && (sec->type != REAL || sec->type != REAL_L))
-		|| (bot->type == TEXT_L && (sec->type != TEXT || sec->type != TEXT_L)))
-		return -1;
-
-	size_t sec_len = is_list(sec) ? sec->data.list.len : 1;
-	size_t new_len = bot->data.list.len += sec_len;
-	size_t new_size = new_len * sizeof(struct value);
-	bot->data.list.value = realloc(bot->data.list.value, new_size);
-	
-	size_t idx = (size_t)top->data.real;
-	memmove(bot->data.list.value + idx + sec_len,
-			bot->data.list.value + idx,
-			sec_len * sizeof(struct value));
-	memcpy(bot->data.list.value + idx,
-		   sec->data.list.value,
-		   sec_len * sizeof(struct value));
-	*len -= 2;
-
 	return 0;
 }
 
@@ -394,40 +375,6 @@ value_list_remove(struct value stack[STACK_LEN], size_t *len)
 	if (*len < 2)
 		return -1;
 	
-	struct value *top = &stack[*len - 1];
-	struct value *sec = &stack[*len - 2];
-	if (!is_list(sec) || is_list(top))
-		return -1;
-	
-	size_t i;
-	for (i = 0; i < sec->data.list.len; i++) {
-		if (!memcmp(&sec->data.list.value[i], top, sizeof(struct value))) {
-			value_free(&sec->data.list.value[i]);
-			for (size_t j = i; j < sec->data.list.len - 1; j++)
-				sec->data.list.value[j] = sec->data.list.value[j + 1];
-			break;
-		}
-	}
-	if (i == sec->data.list.len) {
-		switch (sec->type) {
-		case BOOL_L:
-			*sec = value_bool_null();
-			break;
-		case REAL_L:
-			*sec = value_real_null();
-			break;
-		case TEXT_L:
-			value_free(sec);
-			*sec = value_text_null();
-			break;
-		default:
-			return -1;
-		}
-	} else {
-		size_t new_size = --sec->data.list.len * sizeof(struct value);
-		sec->data.list.value = realloc(sec->data.list.value, new_size);
-	}
-
 	return 0;
 }
 
@@ -437,22 +384,6 @@ value_list_search(struct value stack[STACK_LEN], size_t *len)
 	if (*len < 2)
 		return -1;
 	
-	struct value *top = &stack[*len - 1];
-	struct value *sec = &stack[*len - 2];
-	if (!is_list(sec))
-		return -1;
-	
-	size_t top_len = is_list(top) ? top->data.list.len : 1;
-	size_t top_size = top_len * sizeof(struct value);
-	for (size_t i = 0; i < sec->data.list.len - top_len; i++) {
-		if (!memcmp(sec->data.list.value + i,
-					top->data.list.value, top_size)) {
-			*sec = value_real_with((double)i);
-			return 0;
-		}
-	}
-
-	*sec = value_real_null();
 	return 0;
 }
 
@@ -462,31 +393,6 @@ value_list_getnth(struct value stack[STACK_LEN], size_t *len)
 	if (*len < 2)
 		return -1;
 	
-	struct value *top = &stack[*len - 1];
-	struct value *sec = &stack[*len - 2];
-	if (!is_list(sec) || top->type != REAL)
-		return -1;
-
-	size_t idx = (size_t)top->data.real;
-	if (idx < 0 || sec->data.list.len <= idx) {
-		switch (sec->type) {
-		case BOOL_L:
-			*top = value_bool_null();
-			break;
-		case REAL_L:
-			*top = value_real_null();
-			break;
-		case TEXT_L:
-			*top = value_text_null();
-			break;
-		default:
-			return -1;
-		}
-	} else {
-		*sec = sec->data.list.value[idx];
-	}
-	(*len)--;
-
 	return 0;
 }
 
@@ -496,22 +402,6 @@ value_list_setnth(struct value stack[STACK_LEN], size_t *len)
 	if (*len < 2)
 		return -1;
 	
-	struct value *top = &stack[*len - 1];
-	struct value *sec = &stack[*len - 2];
-	struct value *bot = &stack[*len - 3];
-	if (!is_list(bot) || top->type != REAL)
-		return -1;
-	if ((bot->type == BOOL_L && sec->type != BOOL)
-		|| (bot->type == REAL_L && sec->type != REAL)
-		|| (bot->type == TEXT_L && sec->type != TEXT))
-		return -1;
-
-	size_t idx = (size_t)top->data.real;
-	if (idx < 0 || bot->data.list.len <= idx)
-		return -1;
-	sec->data.list.value[idx] = *sec;
-	(*len)--;
-
 	return 0;
 }
 
@@ -521,36 +411,6 @@ value_list_rmvnth(struct value stack[STACK_LEN], size_t *len)
 	if (*len < 2)
 		return -1;
 	
-	struct value *top = &stack[*len - 1];
-	struct value *sec = &stack[*len - 2];
-	if (!is_list(sec) || top->type != REAL)
-		return -1;
-
-	size_t idx = (size_t)top->data.real;
-	if (idx < 0 || sec->data.list.len <= idx) {
-		switch (sec->type) {
-		case BOOL_L:
-			*top = value_bool_null();
-			break;
-		case REAL_L:
-			*top = value_real_null();
-			break;
-		case TEXT_L:
-			*top = value_text_null();
-			break;
-		default:
-			return -1;
-		}
-	} else {
-		*sec = sec->data.list.value[idx];
-	}
-
-	size_t new_len = --sec->data.list.len;
-	memmove(sec->data.list.value + idx,
-			sec->data.list.value + idx + 1,
-			new_len * sizeof(struct value));
-	(*len)--;
-
 	return 0;
 }
 
@@ -1011,5 +871,30 @@ value_text_rand(struct value stack[STACK_LEN], size_t *len)
 	char txt[] = " ";
 	txt[0] = xoshiro256ss() % 95 + 32; /* ASCII 32 ~ 126 */
 	stack[(*len)++] = value_text_with(txt);
+	return 0;
+}
+
+#include <assert.h>
+int
+main()
+{
+	struct value list, item;
+	char str1[] = "[true,false,true]";
+	value_from_text(&list, str1);
+	value_from_text(&item, str1);
+
+	struct value stack[STACK_LEN] = { list, item };
+	size_t stack_len = 2;
+
+	int res = value_list_append(stack, &stack_len);
+
+	assert(!res);
+	assert(stack[0].data.list.value[0].data.bool);
+	assert(!stack[0].data.list.value[1].data.bool);
+	assert(stack[0].data.list.value[2].data.bool);
+	assert(stack[0].data.list.value[3].data.bool);
+	assert(!stack[0].data.list.value[4].data.bool);
+	assert(stack[0].data.list.value[5].data.bool);
+	
 	return 0;
 }
