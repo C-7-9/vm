@@ -247,26 +247,27 @@ value_list_from_raw_text(struct value *res_list, char *text)
 }
 
 int
-value_from_text(struct value *val, char *text)
+value_from_text(struct value *val, const char *text)
 {
-	if (!strlen(text))
+	char *str = str_new(text);
+	if (!strlen(str))
 		return -1;
-	if (!strcmp(text, "BOOL"))
+	if (!strcmp(str, "BOOL"))
 		*val = value_bool_null();
-	else if (!strcmp(text, "REAL"))
+	else if (!strcmp(str, "REAL"))
 		*val = value_real_null();
-	else if (!strcmp(text, "TEXT"))
+	else if (!strcmp(str, "TEXT"))
 		*val = value_text_null();
-	else if (!strcmp(text, "true"))
+	else if (!strcmp(str, "true"))
 		*val = value_bool_with(1);
-	else if (!strcmp(text, "false"))
+	else if (!strcmp(str, "false"))
 		*val = value_bool_with(0);
-	else if (text[0] == '"')
-		*val = value_text_from_raw_text(text);
-	else if (('0' <= text[0] && text[0] <= '9') || text[0] == '.')
-		*val = value_real_with(atof(text));
-	else if (text[0] == '[')
-		value_list_from_raw_text(val, text);
+	else if (str[0] == '"')
+		*val = value_text_from_raw_text(str);
+	else if (('0' <= str[0] && str[0] <= '9') || str[0] == '.')
+		*val = value_real_with(atof(str));
+	else if (str[0] == '[')
+		value_list_from_raw_text(val, str);
 	else
 		return -1;
 

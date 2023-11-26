@@ -37,4 +37,4 @@ void value_free(struct value *);
 void value_copy(struct value *, const struct value);
 
 char * value_into_text(const struct value);
-int value_from_text(struct value *, char *);
+int value_from_text(struct value *, const char *);
