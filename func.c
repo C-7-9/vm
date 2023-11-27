@@ -338,9 +338,7 @@ value_list_append(struct value stack[STACK_LEN], size_t *len)
 	
 	struct value *top = &stack[*len - 1];
 	struct value *sec = &stack[*len - 2];
-	if (!is_list(sec))
-		return -1;
-	if (invalid_item(sec, top))
+	if (!is_list(sec) || invalid_item(sec, top))
 		return -1;
 
 	size_t item_len = is_list(top) ? top->data.list.len : 1;
@@ -365,6 +363,30 @@ value_list_insert(struct value stack[STACK_LEN], size_t *len)
 {
 	if (*len < 3)
 		return -1;
+
+	struct value *top = &stack[*len - 1];
+	struct value *sec = &stack[*len - 2];
+	struct value *bot = &stack[*len - 3];
+	if (!is_list(bot) || invalid_item(bot, sec))
+		return -1;
+
+	size_t idx = (size_t)top->data.real;
+	size_t item_len = is_list(sec) ? sec->data.list.len : 1;
+	size_t new_size = (bot->data.list.len + item_len) * sizeof(struct value);
+	bot->data.list.value = realloc(bot->data.list.value, new_size);
+
+	for (size_t i = bot->data.list.len - 1; i >= idx; i--)
+		bot->data.list.value[i + item_len] = bot->data.list.value[i];
+	bot->data.list.len += item_len;
+
+	if (is_list(sec))
+		for (size_t i = 0; i < sec->data.list.len; i++)
+			bot->data.list.value[idx + i]
+				= sec->data.list.value[i];
+	else
+		bot->data.list.value[idx] = *sec;
+
+	(*len) -= 2;
 
 	return 0;
 }
@@ -878,20 +900,20 @@ value_text_rand(struct value stack[STACK_LEN], size_t *len)
 int
 main()
 {
-	struct value list, item;
+	struct value list, item, idx = value_real_with(1);
 	char str1[] = "[true,false,true]";
 	value_from_text(&list, str1);
 	value_from_text(&item, str1);
 
-	struct value stack[STACK_LEN] = { list, item };
-	size_t stack_len = 2;
+	struct value stack[STACK_LEN] = { list, item, idx };
+	size_t stack_len = 3;
 
-	int res = value_list_append(stack, &stack_len);
+	int res = value_list_insert(stack, &stack_len);
 
 	assert(!res);
 	assert(stack[0].data.list.value[0].data.bool);
-	assert(!stack[0].data.list.value[1].data.bool);
-	assert(stack[0].data.list.value[2].data.bool);
+	assert(stack[0].data.list.value[1].data.bool);
+	assert(!stack[0].data.list.value[2].data.bool);
 	assert(stack[0].data.list.value[3].data.bool);
 	assert(!stack[0].data.list.value[4].data.bool);
 	assert(stack[0].data.list.value[5].data.bool);
