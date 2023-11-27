@@ -291,10 +291,6 @@ value_text_rmvnth(struct value stack[STACK_LEN], size_t *len)
 	char ch;
 	if (str_remove(&sec->data.text, &ch, idx))
 		*sec = value_text_null();
-	else {
-		buf[0] = ch;
-		*sec = value_text_with(buf);
-	}
 	
 	(*len)--;
 	return 0;
@@ -414,6 +410,31 @@ value_list_getnth(struct value stack[STACK_LEN], size_t *len)
 {
 	if (*len < 2)
 		return -1;
+
+	struct value *top = &stack[*len - 1];
+	struct value *sec = &stack[*len - 2];
+	if (!is_list(sec) || top->type != REAL)
+		return -1;
+
+	size_t idx = (size_t)top->data.real;
+	if (idx < sec->data.list.len)
+		*sec = sec->data.list.value[idx];
+	else
+		switch (sec->type) {
+		case BOOL_L:
+			*sec = value_bool_null();
+			break;
+		case REAL_L:
+			*sec = value_real_null();
+			break;
+		case TEXT_L:
+			*sec = value_text_null();
+			break;
+		default:
+			return -1;
+		}
+
+	(*len)--;
 	
 	return 0;
 }
@@ -421,9 +442,22 @@ value_list_getnth(struct value stack[STACK_LEN], size_t *len)
 int
 value_list_setnth(struct value stack[STACK_LEN], size_t *len)
 {
-	if (*len < 2)
+	if (*len < 3)
 		return -1;
 	
+	struct value *top = &stack[*len - 1];
+	struct value *sec = &stack[*len - 2];
+	struct value *bot = &stack[*len - 3];
+	if (!is_list(bot) || invalid_item(bot, sec))
+		return -1;
+	
+	size_t idx = (size_t)top->data.real;
+	if (bot->data.list.len <= idx)
+		return -1;
+	
+	value_copy(&bot->data.list.value[idx], *sec);
+	(*len) -= 2;
+
 	return 0;
 }
 
@@ -432,6 +466,32 @@ value_list_rmvnth(struct value stack[STACK_LEN], size_t *len)
 {
 	if (*len < 2)
 		return -1;
+	
+	struct value *top = &stack[*len - 1];
+	struct value *sec = &stack[*len - 2];
+	if (!is_list(sec) || top->type != REAL)
+		return -1;
+	
+	size_t idx = (size_t)top->data.real;
+	if (idx < sec->data.list.len)
+		for (size_t i = idx; i < sec->data.list.len - 1; i++)
+			sec->data.list.value[i] = sec->data.list.value[i + 1];
+	else
+		switch (sec->type) {
+		case BOOL_L:
+			*sec = value_bool_null();
+			break;
+		case REAL_L:
+			*sec = value_real_null();
+			break;
+		case TEXT_L:
+			*sec = value_text_null();
+			break;
+		default:
+			return -1;
+		}
+
+	(*len)--;
 	
 	return 0;
 }
@@ -900,23 +960,18 @@ value_text_rand(struct value stack[STACK_LEN], size_t *len)
 int
 main()
 {
-	struct value list, item, idx = value_real_with(1);
+	struct value list, idx = value_real_with(1);
 	char str1[] = "[true,false,true]";
 	value_from_text(&list, str1);
-	value_from_text(&item, str1);
 
-	struct value stack[STACK_LEN] = { list, item, idx };
-	size_t stack_len = 3;
+	struct value stack[STACK_LEN] = { list, idx };
+	size_t stack_len = 2;
 
-	int res = value_list_insert(stack, &stack_len);
+	int res = value_list_rmvnth(stack, &stack_len);
 
 	assert(!res);
 	assert(stack[0].data.list.value[0].data.bool);
 	assert(stack[0].data.list.value[1].data.bool);
-	assert(!stack[0].data.list.value[2].data.bool);
-	assert(stack[0].data.list.value[3].data.bool);
-	assert(!stack[0].data.list.value[4].data.bool);
-	assert(stack[0].data.list.value[5].data.bool);
 	
 	return 0;
 }
