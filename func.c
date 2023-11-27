@@ -387,6 +387,29 @@ value_list_insert(struct value stack[STACK_LEN], size_t *len)
 	return 0;
 }
 
+static int
+value_eq(struct value *left, struct value *right)
+{
+	if (left->type != right->type)
+		return 0;
+	switch (left->type) {
+	case BOOL:
+		return left->data.bool == right->data.bool;
+	case REAL:
+		return left->data.real == right->data.real;
+	case TEXT:
+		return !strcmp(left->data.text, right->data.text);
+	case BOOL_L: /* FALLTHROUGH */
+	case REAL_L:
+	case TEXT_L:
+		return 0;
+	case BOOL_N: /* FALLTHROUGH */
+	case REAL_N:
+	case TEXT_N:
+		return 1;
+	}
+}
+
 int
 value_list_remove(struct value stack[STACK_LEN], size_t *len)
 {
@@ -402,6 +425,32 @@ value_list_search(struct value stack[STACK_LEN], size_t *len)
 	if (*len < 2)
 		return -1;
 	
+	struct value *top = &stack[*len - 1];
+	struct value *sec = &stack[*len - 2];
+	if (!is_list(sec) || invalid_item(sec, top))
+		return -1;
+	
+	size_t i, j;
+	if (is_list(top))
+		for (i = 0; i < sec->data.list.len; i++) {
+			for (j = 0; j < top->data.list.len; j++)
+				if (!value_eq(&sec->data.list.value[i + j],
+							  &top->data.list.value[j]))
+					break;
+			if (j == top->data.list.len) {
+				*sec = value_real_with((double)i);
+				return 0;
+			}
+		}
+	else
+		for (i = 0; i < sec->data.list.len; i++)
+			if (value_eq(&sec->data.list.value[i], top)) {
+				*sec = value_real_with((double)i);
+				return 0;
+			}
+
+	*sec = value_real_null();
+
 	return 0;
 }
 
@@ -960,18 +1009,19 @@ value_text_rand(struct value stack[STACK_LEN], size_t *len)
 int
 main()
 {
-	struct value list, idx = value_real_with(1);
-	char str1[] = "[true,false,true]";
+	struct value list, item;
+	char str1[] = "[0,1,2]";
 	value_from_text(&list, str1);
+	char str2[] = "[3]";
+	value_from_text(&item, str2);
 
-	struct value stack[STACK_LEN] = { list, idx };
+	struct value stack[STACK_LEN] = { list, item };
 	size_t stack_len = 2;
 
-	int res = value_list_rmvnth(stack, &stack_len);
+	int res = value_list_search(stack, &stack_len);
 
 	assert(!res);
-	assert(stack[0].data.list.value[0].data.bool);
-	assert(stack[0].data.list.value[1].data.bool);
+	assert(stack[0].type == REAL_N);
 	
 	return 0;
 }
