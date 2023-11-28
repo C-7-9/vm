@@ -287,7 +287,6 @@ value_text_rmvnth(struct value stack[STACK_LEN], size_t *len)
 		return -1;
 
 	size_t idx = (size_t)top->data.real;
-	char buf[] = " ";
 	char ch;
 	if (str_remove(&sec->data.text, &ch, idx))
 		*sec = value_text_null();
@@ -408,6 +407,8 @@ value_eq(struct value *left, struct value *right)
 	case TEXT_N:
 		return 1;
 	}
+
+	return 0; /* UNREACHABLE */
 }
 
 int
@@ -416,7 +417,46 @@ value_list_remove(struct value stack[STACK_LEN], size_t *len)
 	if (*len < 2)
 		return -1;
 	
-	return 0;
+	struct value *top = &stack[*len - 1];
+	struct value *sec = &stack[*len - 2];
+	if (!is_list(sec) || invalid_item(sec, top))
+		return -1;
+	
+	size_t i, j;
+	if (is_list(top))
+		if (sec->data.list.len < top->data.list.len)
+			return -1;
+		else
+			for (i = 0; i < sec->data.list.len; i++) {
+				for (j = 0; j < top->data.list.len; j++)
+					if (!value_eq(&sec->data.list.value[i + j],
+								  &top->data.list.value[j]))
+						break;
+				if (j == top->data.list.len) {
+					size_t k, k_max = sec->data.list.len - top->data.list.len;
+					for (k = i; k < k_max; k++)
+						sec->data.list.value[k]
+							= sec->data.list.value[k + top->data.list.len];
+					sec->data.list.value
+						= realloc(sec->data.list.value,
+								  (sec->data.list.len) * sizeof(struct value));
+					sec->data.list.len -= top->data.list.len;
+					return 0;
+				}
+			}
+	else
+		for (i = 0; i < sec->data.list.len; i++)
+			if (value_eq(&sec->data.list.value[i], top)) {
+				for (; i < sec->data.list.len - 1; i++)
+					sec->data.list.value[i] = sec->data.list.value[i + 1];
+				sec->data.list.value
+					= realloc(sec->data.list.value,
+							  --sec->data.list.len * sizeof(struct value));
+				sec->data.list.len -= top->data.list.len;
+				return 0;
+			}
+
+	return 0; /* UNREACHABLE */
 }
 
 int
@@ -1002,26 +1042,5 @@ value_text_rand(struct value stack[STACK_LEN], size_t *len)
 	char txt[] = " ";
 	txt[0] = xoshiro256ss() % 95 + 32; /* ASCII 32 ~ 126 */
 	stack[(*len)++] = value_text_with(txt);
-	return 0;
-}
-
-#include <assert.h>
-int
-main()
-{
-	struct value list, item;
-	char str1[] = "[0,1,2]";
-	value_from_text(&list, str1);
-	char str2[] = "[3]";
-	value_from_text(&item, str2);
-
-	struct value stack[STACK_LEN] = { list, item };
-	size_t stack_len = 2;
-
-	int res = value_list_search(stack, &stack_len);
-
-	assert(!res);
-	assert(stack[0].type == REAL_N);
-	
 	return 0;
 }
