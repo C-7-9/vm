@@ -768,48 +768,24 @@ value_list_eq(struct value stack[STACK_LEN], size_t *len)
 	
 	struct value *top = &stack[*len - 1];
 	struct value *sec = &stack[*len - 2];
-	if (top->type == BOOL_L && sec->type == BOOL_L) {
-		if (top->data.list.len != sec->data.list.len)
-			return -1;
-		for (size_t i = 0; i < top->data.list.len; i++) {
-			if (top->data.list.value[i].data.bool 
-				!= sec->data.list.value[i].data.bool) {
-				*sec = value_bool_with(0);
-				return 0;
-			}
-		}
-		*sec = value_bool_with(1);
-		return 0;
-	} 
-	if (top->type == REAL_L && sec->type == REAL_L) {
-		if (top->data.list.len != sec->data.list.len)
-			return -1;
-		for (size_t i = 0; i < top->data.list.len; i++) {
-			if (top->data.list.value[i].data.real 
-				!= sec->data.list.value[i].data.real) {
-				*sec = value_bool_with(0);
-				return 0;
-			}
-		}
-		*sec = value_bool_with(1);
-		return 0;
-	} 
-	if (top->type == TEXT_L && sec->type == TEXT_L) {
-		if (top->data.list.len != sec->data.list.len)
-			return -1;
-		for (size_t i = 0; i < top->data.list.len; i++) {
-			if (!strcmp(top->data.list.value[i].data.text,
-						sec->data.list.value[i].data.text)) {
-				*sec = value_bool_with(0);
-				return 0;
-			}
-		}
-		*sec = value_bool_with(1);
-		return 0;
+	if (top->type != sec->type || !is_list(top) || !is_list(sec))
+		return -1;
+	if (top->data.list.len != sec->data.list.len) {
+		*sec = value_bool_with(0);
+		goto end;
 	}
-	(*len)--;
+	else
+		for (size_t i = 0; i < top->data.list.len; i++)
+			if (!value_eq(&top->data.list.value[i],
+						  &sec->data.list.value[i])) {
+				*sec = value_bool_with(0);
+				goto end;
+			}
 	
-	return -1;
+	*sec = value_bool_with(1);
+	end:
+	(*len)--;
+	return 0;
 }
 
 int
@@ -818,50 +794,10 @@ value_list_ne(struct value stack[STACK_LEN], size_t *len)
 	if (*len < 2)
 		return -1;
 	
-	struct value *top = &stack[*len - 1];
-	struct value *sec = &stack[*len - 2];
-	if (top->type == BOOL_L && sec->type == BOOL_L) {
-		if (top->data.list.len != sec->data.list.len)
-			return -1;
-		for (size_t i = 0; i < top->data.list.len; i++) {
-			if (top->data.list.value[i].data.bool 
-				!= sec->data.list.value[i].data.bool) {
-				*sec = value_bool_with(1);
-				return 0;
-			}
-		}
-		*sec = value_bool_with(0);
-		return 0;
-	} 
-	if (top->type == REAL_L && sec->type == REAL_L) {
-		if (top->data.list.len != sec->data.list.len)
-			return -1;
-		for (size_t i = 0; i < top->data.list.len; i++) {
-			if (top->data.list.value[i].data.real 
-				!= sec->data.list.value[i].data.real) {
-				*sec = value_bool_with(1);
-				return 0;
-			}
-		}
-		*sec = value_bool_with(0);
-		return 0;
-	} 
-	if (top->type == TEXT_L && sec->type == TEXT_L) {
-		if (top->data.list.len != sec->data.list.len)
-			return -1;
-		for (size_t i = 0; i < top->data.list.len; i++) {
-			if (!strcmp(top->data.list.value[i].data.text,
-						sec->data.list.value[i].data.text)) {
-				*sec = value_bool_with(1);
-				return 0;
-			}
-		}
-		*sec = value_bool_with(0);
-		return 0;
-	}
-	(*len)--;
-	
-	return -1;
+	value_list_eq(stack, len);
+	stack[0].data.bool = !stack[0].data.bool;
+
+	return 0;
 }
 
 int
