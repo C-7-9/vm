@@ -20,7 +20,7 @@
 #include "vm.h"
 #include <stdlib.h>
 
-static int (*func[])(struct value[STACK_LEN], size_t *) = {
+static int (*fun[])(struct value[STACK_LEN], size_t *) = {
 	value_bool_and, 
 	value_bool_oor,
 	value_bool_xor,
@@ -91,20 +91,20 @@ stack_load(struct vm *vm, size_t index)
 }
 
 static int
-call_push(struct vm *vm, uint16_t func_num)
+call_push(struct vm *vm, uint16_t fun_num)
 {
 	if (vm->call_len == CALL_MAX)
 		return -1;
-	vm->call[vm->call_len++] = func_num;
+	vm->call[vm->call_len++] = fun_num;
 	return 0;
 }
 
 static int
-call_pop(struct vm *vm, uint16_t *func_num)
+call_pop(struct vm *vm, uint16_t *fun_num)
 {
 	if (!vm->call_len)
 		return -1;
-	*func_num = vm->call[--vm->call_len];
+	*fun_num = vm->call[--vm->call_len];
 	return 0;
 }
 
@@ -148,30 +148,30 @@ vm_run_one(struct vm *vm)
 				return -1;
 		break;
 	case 0x50: /* call user-defined function */
-		if (oprand >= vm->func_len)
+		if (oprand >= vm->fun_len)
 			return -1;
-		vm->pc = vm->func[oprand];
+		vm->pc = vm->fun[oprand];
 		if ((vm->bc[vm->pc * 2] & 0xf0) != 0x50)
 			return -1;
 		call_push(vm, oprand);
 		break;
 	case 0x60: /* call built-in function */
-		if (func[oprand](vm->stack, &vm->stack_len))
+		if (fun[oprand](vm->stack, &vm->stack_len))
 			return -1;
 		break;
 	case 0x70: /* return */ {
-		uint16_t func_num;
-		if (call_pop(vm, &func_num))
+		uint16_t fun_num;
+		if (call_pop(vm, &fun_num))
 			return -1;
-		vm->pc = vm->func[func_num] * 2;
+		vm->pc = vm->fun[fun_num] * 2;
 		stack_push(vm, vm->var[oprand]);
 		break;
 	}
 	case 0x80: /* tail of function */ {
-		uint16_t func_num;
-		if (call_pop(vm, &func_num))
+		uint16_t fun_num;
+		if (call_pop(vm, &fun_num))
 			return 1; /* end of program */
-		vm->pc = vm->func[func_num] * 2;
+		vm->pc = vm->fun[fun_num] * 2;
 		break;
 	}
 	case 0x90: /* loop start */

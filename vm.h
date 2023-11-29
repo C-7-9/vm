@@ -17,7 +17,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "func.h"
+#include "fun.h"
 #define CALL_MAX 1024
 
 struct vm {
@@ -30,8 +30,8 @@ struct vm {
 	struct value *con;
 	size_t con_len;
 
-	size_t *func;
-	size_t func_len;
+	size_t *fun;
+	size_t fun_len;
 
 	uint16_t call[CALL_MAX];
 	size_t call_len;
