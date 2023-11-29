@@ -17,7 +17,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "func.h"
+#include "fun.h"
 #include "str.h"
 #include <math.h>
 #include <string.h>
@@ -960,7 +960,6 @@ xoshiro256ss()
 	buf[3] ^= buf[1];
 	buf[1] ^= buf[2];
 	buf[0] ^= buf[3];
-
 	buf[2] ^= tmp;
 
 	buf[3] = rotl(buf[3], 45);
