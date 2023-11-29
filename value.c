@@ -103,7 +103,6 @@ value_free(struct value *val)
 void
 value_copy(struct value *left, const struct value right)
 {
-	value_free(left);
 	left->type = right.type;
 	switch (right.type) {
 	case TEXT:
