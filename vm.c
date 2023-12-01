@@ -76,12 +76,12 @@ stack_push(struct vm *vm, struct value val)
 static int
 stack_load(struct vm *vm, size_t index)
 {
-	if (vm->var_len < index + 1)
+	if (vm->var_len < index)
 		return -1;
 	if (!vm->stack_len)
 		return -1;
 	
-	if (vm->var_len == index + 1)
+	if (vm->var_len == index)
 		vm->var = realloc(vm->var, ++vm->var_len * sizeof(struct value));
 	value_copy(&vm->var[index], vm->stack[vm->stack_len - 1]);
 	value_free(&vm->stack[vm->stack_len - 1]);
