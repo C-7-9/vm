@@ -76,15 +76,20 @@ stack_push(struct vm *vm, struct value val)
 static int
 stack_load(struct vm *vm, size_t index)
 {
-	if (vm->var_len < index)
-		return -1;
 	if (!vm->stack_len)
 		return -1;
 	
-	if (vm->var_len == index)
+	if (index > vm->var_len)
+		return -1;
+	else if (index < vm->var_len) {
+		if (vm->var[index].type != vm->stack[vm->stack_len - 1].type)
+			return -1;
+	} else
 		vm->var = realloc(vm->var, ++vm->var_len * sizeof(struct value));
-	value_copy(&vm->var[index], vm->stack[--vm->stack_len]);
-	value_free(&vm->stack[vm->stack_len]);
+	
+	value_copy(&vm->var[index], vm->stack[vm->stack_len - 1]);
+	value_free(&vm->stack[vm->stack_len - 1]);
+	vm->stack_len--;
 
 	return 0;
 }
@@ -139,43 +144,51 @@ vm_run_one(struct vm *vm)
 			return -1;
 		break;
 	case 0x40: /* head of function */
-		if (oprand > vm->stack_len)
-			return -1;
-		for (size_t i = 0; i < oprand; i++)
-			if (stack_load(vm, vm->var_len++))
-				return -1;
-		break;
 	case 0x50: /* call user-defined function */
-		if (oprand >= vm->fun_len)
-			return -1;
-		struct call_info new_info = { vm->pc, vm->var_len };
-		call_push(vm, new_info);
-		if ((vm->bc[vm->fun[oprand]] & 0xf0) != 0x40)
-			return -1;
-		vm->pc = vm->fun[oprand];
-		return 0;
 	case 0x60: /* call built-in function */
 		if (fun[oprand](vm->stack, &vm->stack_len))
 			return -1;
 		break;
 	case 0x70: /* return */
-		struct value top = vm->stack[vm->stack_len - 1];
-		vm->stack_len = 1;
-		vm->stack[0] = top; /* FALLTHOUGH */
 	case 0x80: /* tail of function */
-		struct call_info pop_info;
-		call_pop(vm, &pop_info);
-		vm->pc = pop_info.pc;
-		vm->var_len = pop_info.var_len;
+	case 0x90: /* loop head */
+		struct flow_info new_loop;
+		new_loop.head = vm->pc;
+		new_loop.tail = vm->pc + (oprand * 2);
+		new_loop.var_len = vm->var_len;
+		vm->flow_info[vm->flow_len++] = new_loop;
+		break;
+	case 0xA0: /* loop next */
+		vm->pc = vm->flow_info[vm->flow_len - 1].tail;
+		break;
+	case 0xB0: /* loop exit */
+		vm->pc = vm->flow_info[vm->flow_len - 1].tail + 2;
+		break;
+	case 0xC0: /* loop tail */
+		struct flow_info last_loop = vm->flow_info[vm->flow_len - 1];
+		vm->pc = last_loop.head;
+		vm->var_len = last_loop.var_len;
 		vm->var = realloc(vm->var, vm->var_len * sizeof(struct value));
 		break;
-	case 0x90: /* loop start */
-	case 0xA0: /* loop next */
-	case 0xB0: /* loop exit */
-	case 0xC0: /* loop end */
 	case 0xD0: /* if */
-	case 0xE0: /* or */
-	case 0xF0: /* ifor end */
+		struct value top = vm->stack[--vm->stack_len];
+		if (top.type != BOOL)
+			return -1;
+		if (!top.data.bool) {
+			vm->pc += oprand * 2;
+			break;
+		}
+		struct flow_info new_if;
+		new_if.var_len = vm->var_len;
+		vm->flow_info[vm->flow_len++] = new_if;
+		break;
+	case 0xE0: /* else */
+		vm->pc += oprand * 2; /* FALLTHROUGH */
+	case 0xF0: /* if-else tail */
+		struct flow_info last_if = vm->flow_info[vm->flow_len - 1];
+		vm->var_len = last_if.var_len;
+		vm->var = realloc(vm->var, vm->var_len * sizeof(struct value));
+		break;
 	}
 
 	vm->pc += 2;

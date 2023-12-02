@@ -19,6 +19,13 @@
 
 #include "fun.h"
 #define CALL_MAX 1024
+#define FLOW_MAX 8
+
+struct flow_info {
+	size_t head;
+	size_t tail;
+	size_t var_len;
+};
 
 struct call_info {
 	size_t pc;
@@ -40,6 +47,9 @@ struct vm {
 
 	struct call_info call_info[CALL_MAX];
 	size_t call_len;
+
+	struct flow_info flow_info[FLOW_MAX];
+	size_t flow_len;
 
 	uint8_t *bc;
 	size_t bc_len;
