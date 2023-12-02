@@ -20,6 +20,11 @@
 #include "fun.h"
 #define CALL_MAX 1024
 
+struct call_info {
+	size_t pc;
+	size_t var_len;
+};
+
 struct vm {
 	struct value stack[STACK_LEN];
 	size_t stack_len;
@@ -33,7 +38,7 @@ struct vm {
 	size_t *fun;
 	size_t fun_len;
 
-	uint16_t call[CALL_MAX];
+	struct call_info call_info[CALL_MAX];
 	size_t call_len;
 
 	uint8_t *bc;

@@ -19,6 +19,7 @@
 
 #include "vm.h"
 #include <stdlib.h>
+#include <string.h>
 
 static int (*fun[])(struct value[STACK_LEN], size_t *) = {
 	value_bool_and, 
@@ -83,28 +84,27 @@ stack_load(struct vm *vm, size_t index)
 	
 	if (vm->var_len == index)
 		vm->var = realloc(vm->var, ++vm->var_len * sizeof(struct value));
-	value_copy(&vm->var[index], vm->stack[vm->stack_len - 1]);
-	value_free(&vm->stack[vm->stack_len - 1]);
-	vm->stack_len--;
+	value_copy(&vm->var[index], vm->stack[--vm->stack_len]);
+	value_free(&vm->stack[vm->stack_len]);
 
 	return 0;
 }
 
 static int
-call_push(struct vm *vm, uint16_t fun_num)
+call_push(struct vm *vm, struct call_info info)
 {
 	if (vm->call_len == CALL_MAX)
 		return -1;
-	vm->call[vm->call_len++] = fun_num;
+	vm->call_info[vm->call_len++] = info;
 	return 0;
 }
 
 static int
-call_pop(struct vm *vm, uint16_t *fun_num)
+call_pop(struct vm *vm, struct call_info *info)
 {
 	if (!vm->call_len)
 		return -1;
-	*fun_num = vm->call[--vm->call_len];
+	*info = vm->call_info[--vm->call_len];
 	return 0;
 }
 
@@ -120,10 +120,9 @@ vm_init(struct vm *vm, uint8_t *bytes, size_t bytes_len)
 int
 vm_run_one(struct vm *vm)
 {
-	size_t pc = vm->pc++ * 2; 
-	uint8_t opcode = vm->bc[pc] & 0xf0;
-	uint16_t oprand = ((uint16_t)(vm->bc[pc] & 0x0f) << 8) 
-					| vm->bc[pc + 1];
+	uint8_t opcode = vm->bc[vm->pc] & 0xf0;
+	uint16_t oprand = (((uint16_t)vm->bc[vm->pc] << 8) & 0x0f00)
+				      | vm->bc[vm->pc + 1];
 
 	switch (opcode) {
 	case 0x00: /* shutdown */
@@ -150,30 +149,27 @@ vm_run_one(struct vm *vm)
 	case 0x50: /* call user-defined function */
 		if (oprand >= vm->fun_len)
 			return -1;
-		vm->pc = vm->fun[oprand];
-		if ((vm->bc[vm->pc * 2] & 0xf0) != 0x50)
+		struct call_info new_info = { vm->pc, vm->var_len };
+		call_push(vm, new_info);
+		if ((vm->bc[vm->fun[oprand]] & 0xf0) != 0x40)
 			return -1;
-		call_push(vm, oprand);
-		break;
+		vm->pc = vm->fun[oprand];
+		return 0;
 	case 0x60: /* call built-in function */
 		if (fun[oprand](vm->stack, &vm->stack_len))
 			return -1;
 		break;
-	case 0x70: /* return */ {
-		uint16_t fun_num;
-		if (call_pop(vm, &fun_num))
-			return -1;
-		vm->pc = vm->fun[fun_num] * 2;
-		stack_push(vm, vm->var[oprand]);
+	case 0x70: /* return */
+		struct value top = vm->stack[vm->stack_len - 1];
+		vm->stack_len = 1;
+		vm->stack[0] = top; /* FALLTHOUGH */
+	case 0x80: /* tail of function */
+		struct call_info pop_info;
+		call_pop(vm, &pop_info);
+		vm->pc = pop_info.pc;
+		vm->var_len = pop_info.var_len;
+		vm->var = realloc(vm->var, vm->var_len * sizeof(struct value));
 		break;
-	}
-	case 0x80: /* tail of function */ {
-		uint16_t fun_num;
-		if (call_pop(vm, &fun_num))
-			return 1; /* end of program */
-		vm->pc = vm->fun[fun_num] * 2;
-		break;
-	}
 	case 0x90: /* loop start */
 	case 0xA0: /* loop next */
 	case 0xB0: /* loop exit */
@@ -182,6 +178,8 @@ vm_run_one(struct vm *vm)
 	case 0xE0: /* or */
 	case 0xF0: /* ifor end */
 	}
+
+	vm->pc += 2;
 
 	return 0;
 }
