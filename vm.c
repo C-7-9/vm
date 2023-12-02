@@ -19,7 +19,6 @@
 
 #include "vm.h"
 #include <stdlib.h>
-#include <string.h>
 
 static int (*fun[])(struct value[STACK_LEN], size_t *) = {
 	value_bool_and, 
