@@ -19,6 +19,7 @@
 
 #include <stddef.h>
 
+char *str_empty();
 char *str_new(const char *);
 int str_replace(char **, char **);
 int str_get_index(char **, char *, size_t);

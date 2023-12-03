@@ -23,11 +23,19 @@
 #include <string.h>
 
 char *
+str_empty()
+{
+	char *new_str = malloc(1);
+	new_str[0] = '\0';
+	return new_str;
+}
+
+char *
 str_new(const char *str)
 {
 	size_t len = strlen(str) + 1;
 	char *new_str = (char *)malloc(len);
-	strcpy(new_str, str);
+	memcpy(new_str, str, len);
 	return new_str;
 }
 
