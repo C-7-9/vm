@@ -159,10 +159,10 @@ vm_run_one(struct vm *vm)
 		vm->flow_info[vm->flow_len++] = new_loop;
 		break;
 	case 0xA0: /* loop next */
-		vm->pc = vm->flow_info[vm->flow_len - 1].tail;
+		vm->pc = vm->flow_info[vm->flow_len - 1].tail - 2;
 		break;
 	case 0xB0: /* loop exit */
-		vm->pc = vm->flow_info[vm->flow_len - 1].tail + 2;
+		vm->pc = vm->flow_info[vm->flow_len - 1].tail;
 		break;
 	case 0xC0: /* loop tail */
 		struct flow_info last_loop = vm->flow_info[vm->flow_len - 1];
@@ -170,22 +170,23 @@ vm_run_one(struct vm *vm)
 		vm->var_len = last_loop.var_len;
 		vm->var = realloc(vm->var, vm->var_len * sizeof(struct value));
 		break;
-	case 0xD0: /* if */
+	case 0xD0: /* when */
+		if (!vm->stack_len)
+			return -1;
 		struct value top = vm->stack[--vm->stack_len];
 		if (top.type != BOOL)
 			return -1;
-		if (!top.data.bool) {
-			vm->pc += oprand * 2;
-			break;
-		}
+		if (!top.data.bool)
+			vm->pc += (oprand + 1) * 2;
 		struct flow_info new_if;
 		new_if.var_len = vm->var_len;
 		vm->flow_info[vm->flow_len++] = new_if;
 		break;
 	case 0xE0: /* else */
-		vm->pc += oprand * 2; /* FALLTHROUGH */
-	case 0xF0: /* if-else tail */
-		struct flow_info last_if = vm->flow_info[vm->flow_len - 1];
+		vm->pc += oprand * 2;
+		break;
+	case 0xF0: /* when tail */
+		struct flow_info last_if = vm->flow_info[--vm->flow_len];
 		vm->var_len = last_if.var_len;
 		vm->var = realloc(vm->var, vm->var_len * sizeof(struct value));
 		break;
