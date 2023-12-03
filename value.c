@@ -50,7 +50,7 @@ value_text_null()
 {
 	struct value val;
 	val.type = TEXT_N;
-	val.data.text = str_new("");
+	val.data.text = str_empty();
 	return val;
 }
 
@@ -157,7 +157,7 @@ value_into_text(const struct value val)
 		}
 		return str_new(buf);
 	case TEXT: {
-		char *text = str_new("");
+		char *text = str_empty();
 		str_push(&text, '"');
 		str_push_str(&text, val.data.text);
 		str_push(&text, '"');
