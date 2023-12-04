@@ -144,13 +144,39 @@ vm_run_one(struct vm *vm)
 			return -1;
 		break;
 	case 0x40: /* head of function */
-	case 0x50: /* call user-defined function */
+		if (oprand > vm->stack_len)
+			return -1;
+		size_t new_len = vm->var_len + oprand;
+		vm->var = realloc(vm->var, new_len * sizeof(struct value));
+		while (vm->var_len < new_len)
+			value_copy(&vm->var[vm->var_len++], vm->stack[--vm->stack_len]);
+		break;
+	case 0x50: /* call user-defined function */	
+		if (oprand >= vm->fun_len)
+			return -1;
+		if (vm->bc[vm->fun[oprand]] != 0x40)
+			return -1;
+		struct call_info new_info = { vm->pc, vm->var_len };
+		if (call_push(vm, new_info))
+			return -1;
+		vm->pc = vm->fun[oprand];
+		return 0;
 	case 0x60: /* call built-in function */
 		if (fun[oprand](vm->stack, &vm->stack_len))
 			return -1;
 		break;
 	case 0x70: /* return */
+		vm->stack_len = 1;
+		vm->stack[0] = vm->stack[vm->stack_len - 1];
+		/* FALLTHROUGH */
 	case 0x80: /* tail of function */
+		struct call_info top_info;
+		if (call_pop(vm, &top_info))
+			return -1;
+		vm->pc = top_info.pc;
+		vm->var = realloc(vm->var, top_info.var_len * sizeof(struct value));
+		vm->var_len = top_info.var_len;
+		break;
 	case 0x90: /* loop head */
 		struct flow_info new_loop;
 		new_loop.head = vm->pc;
