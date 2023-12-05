@@ -1,6 +1,6 @@
 check:
-	cc -Wall *.h *.c -lm
+	cc -std=c99 -Wall *.h *.c -lm
 debug:
-	cc -o test *.c -lm -g
+	cc -std=c99 -o test *.c -lm -g
 clean:
 	rm -f *.gch a.out
