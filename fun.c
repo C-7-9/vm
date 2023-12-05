@@ -942,7 +942,7 @@ init_rand_buf()
 #else
 	int rnd_fd = open("/dev/urandom", O_RDONLY);
 	if (rnd_fd < 0)
-		goto unknown
+		goto unknown;
 	read(rnd_fd, buf, RAND_BUF_SIZE);
 	close(rnd_fd);
 	return;
@@ -962,17 +962,17 @@ rotl(const uint64_t x, int k)
 }
 
 static uint64_t
-xoshiro256pp()
+xoshiro256ss()
 {
-	const uint64_t result = rotl(buf[0] + buf[3], 23) + buf[0];
+	const uint64_t result = rotl(buf[1] * 5, 7) * 9;
 	const uint64_t tmp = buf[1] << 17;
 
 	buf[2] ^= buf[0];
 	buf[3] ^= buf[1];
 	buf[1] ^= buf[2];
 	buf[0] ^= buf[3];
+	
 	buf[2] ^= tmp;
-
 	buf[3] = rotl(buf[3], 45);
 
 	return result;
@@ -984,7 +984,7 @@ value_bool_rand(struct value stack[STACK_LEN], size_t *len)
 	if (*len == STACK_LEN)
 		return -1;
 	
-	stack[(*len)++] = value_bool_with(xoshiro256pp() % 2);
+	stack[(*len)++] = value_bool_with(xoshiro256ss() % 2);
 	return 0;
 }
 
@@ -995,7 +995,7 @@ value_real_rand(struct value stack[STACK_LEN], size_t *len)
 		return -1;
 
 	char str[12];
-	sprintf(str, "%d", abs(xoshiro256pp()));
+	sprintf(str, "%d", abs(xoshiro256ss()));
 	stack[(*len)++] = value_real_with(atof(str));
 	return 0;
 }
@@ -1007,7 +1007,7 @@ value_text_rand(struct value stack[STACK_LEN], size_t *len)
 		return -1;
 	
 	char txt[] = " ";
-	txt[0] = xoshiro256pp() % 95 + 32; /* ASCII 32 ~ 126 */
+	txt[0] = xoshiro256ss() % 95 + 32; /* ASCII 32 ~ 126 */
 	stack[(*len)++] = value_text_with(txt);
 	return 0;
 }
