@@ -942,12 +942,12 @@ init_rand_buf()
 #else
 	int rnd_fd = open("/dev/urandom", O_RDONLY);
 	if (rnd_fd < 0)
-		goto unknow_platform;
+		goto unknown
 	read(rnd_fd, buf, RAND_BUF_SIZE);
 	close(rnd_fd);
 	return;
 #endif
-	unknow_platform:
+	unknown:
 	srand(time(NULL));
 	uint8_t bufbuf[RAND_BUF_SIZE];
 	for (size_t i = 0; i < RAND_BUF_SIZE; i++)
