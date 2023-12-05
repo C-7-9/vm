@@ -926,33 +926,33 @@ value_to_text(struct value stack[STACK_LEN], size_t *len)
 #include <unistd.h>
 #include <fcntl.h>
 #endif
+
 #define RAND_BUF_LEN 4
-#define RAND_BUF_SIZE BUF_LEN * sizeof(uint64_t)
+#define RAND_BUF_SIZE 4 * sizeof(uint64_t)
+#define RNDMAX 2 << 16 - 1
 
 static uint64_t buf[RAND_BUF_LEN];
 
-int
+void
 init_rand_buf()
 {
 #ifdef _WIN32
-	if (CryptGenRandom(GetModuleHandle(NULL), BUF_SIZE, buf))
-		return 0;
+	if (CryptGenRandom(GetModuleHandle(NULL), RAND_BUF_SIZE, buf))
+		return;
 #else
 	int rnd_fd = open("/dev/urandom", O_RDONLY);
 	if (rnd_fd < 0)
-		return -1;
-	if (read(rnd_fd, buf, sizeof buf) < 0)
-		return -1;
+		goto unknow_platform;
+	read(rnd_fd, buf, RAND_BUF_SIZE);
 	close(rnd_fd);
-	return 0;
+	return;
 #endif
+	unknow_platform:
 	srand(time(NULL));
 	uint8_t bufbuf[RAND_BUF_SIZE];
 	for (size_t i = 0; i < RAND_BUF_SIZE; i++)
 		bufbuf[i] = rand() % 256;
 	memcpy(buf, bufbuf, RAND_BUF_SIZE);
-
-	return 0;
 }
 
 static uint64_t
@@ -962,9 +962,9 @@ rotl(const uint64_t x, int k)
 }
 
 static uint64_t
-xoshiro256ss()
+xoshiro256pp()
 {
-	const uint64_t result = rotl(buf[1] * 5, 7) * 9;
+	const uint64_t result = rotl(buf[0] + buf[3], 23) + buf[0];
 	const uint64_t tmp = buf[1] << 17;
 
 	buf[2] ^= buf[0];
@@ -984,7 +984,7 @@ value_bool_rand(struct value stack[STACK_LEN], size_t *len)
 	if (*len == STACK_LEN)
 		return -1;
 	
-	stack[(*len)++] = value_bool_with(xoshiro256ss() % 2);
+	stack[(*len)++] = value_bool_with(xoshiro256pp() % 2);
 	return 0;
 }
 
@@ -993,8 +993,10 @@ value_real_rand(struct value stack[STACK_LEN], size_t *len)
 {
 	if (*len == STACK_LEN)
 		return -1;
-	
-	stack[(*len)++] = value_real_with((double)xoshiro256ss());
+
+	char str[12];
+	sprintf(str, "%d", abs(xoshiro256pp()));
+	stack[(*len)++] = value_real_with(atof(str));
 	return 0;
 }
 
@@ -1005,7 +1007,7 @@ value_text_rand(struct value stack[STACK_LEN], size_t *len)
 		return -1;
 	
 	char txt[] = " ";
-	txt[0] = xoshiro256ss() % 95 + 32; /* ASCII 32 ~ 126 */
+	txt[0] = xoshiro256pp() % 95 + 32; /* ASCII 32 ~ 126 */
 	stack[(*len)++] = value_text_with(txt);
 	return 0;
 }

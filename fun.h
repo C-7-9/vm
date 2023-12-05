@@ -74,4 +74,4 @@ int value_bool_rand(struct value[STACK_LEN], size_t *);
 int value_real_rand(struct value[STACK_LEN], size_t *);
 int value_text_rand(struct value[STACK_LEN], size_t *);
 
-int init_rand_buf();
+void init_rand_buf();
