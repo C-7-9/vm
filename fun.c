@@ -929,7 +929,6 @@ value_to_text(struct value stack[STACK_LEN], size_t *len)
 
 #define RAND_BUF_LEN 4
 #define RAND_BUF_SIZE 4 * sizeof(uint64_t)
-#define RNDMAX 2 << 16 - 1
 
 static uint64_t buf[RAND_BUF_LEN];
 
