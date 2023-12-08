@@ -112,6 +112,21 @@ call_pop(struct vm *vm, struct call_info *info)
 	return 0;
 }
 
+static int
+call_externel_fun(struct vm *vm, ssize_t fun_num)
+{
+	if (fun_num < 0)
+		return 0;
+	
+	switch (fun_num) {
+	/* FILLME */
+	default:
+		return -1;
+	}
+
+	return 0;
+}
+
 int
 vm_init(struct vm *vm, uint8_t *bytes, size_t bytes_len)
 {
@@ -162,6 +177,8 @@ vm_run_one(struct vm *vm)
 		vm->pc = vm->fun[oprand];
 		return 0;
 	case 0x60: /* call built-in function */
+		if (call_external_fun(vm, (ssize_t)oprand - (ssize_t)vm->fun_len))
+			return -1;
 		if (fun[oprand](vm->stack, &vm->stack_len))
 			return -1;
 		break;
