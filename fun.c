@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <time.h>
 
 #define BUF_LEN 50
 
@@ -921,27 +922,37 @@ value_to_text(struct value stack[STACK_LEN], size_t *len)
 
 #ifdef _WIN32
 #include <windows.h>
-#include <time.h>
+#else
+#include <unistd.h>
+#include <fcntl.h>
 #endif
 #define RAND_BUF_LEN 4
 #define RAND_BUF_SIZE BUF_LEN * sizeof(uint64_t)
 
 static uint64_t buf[RAND_BUF_LEN];
 
-void
+int
 init_rand_buf()
 {
 #ifdef _WIN32
-	if (!CryptGenRandom(GetModuleHandle(NULL), BUF_SIZE, buf)) {
-		srand(time(NULL));
-		uint8_t bufbuf[RAND_BUF_SIZE];
-		for (size_t i = 0; i < RAND_BUF_SIZE; i++)
-			bufbuf[i] = rand();
-		memcpy(buf, bufbuf, RAND_BUF_SIZE);
-	}
+	if (CryptGenRandom(GetModuleHandle(NULL), BUF_SIZE, buf))
+		return 0;
 #else
-	arc4random_buf(buf, RAND_BUF_SIZE);
+	int rnd_fd = open("/dev/urandom", O_RDONLY);
+	if (rnd_fd < 0)
+		return -1;
+	if (read(rnd_fd, buf, sizeof buf) < 0)
+		return -1;
+	close(rnd_fd);
+	return 0;
 #endif
+	srand(time(NULL));
+	uint8_t bufbuf[RAND_BUF_SIZE];
+	for (size_t i = 0; i < RAND_BUF_SIZE; i++)
+		bufbuf[i] = rand() % 256;
+	memcpy(buf, bufbuf, RAND_BUF_SIZE);
+
+	return 0;
 }
 
 static uint64_t
